@@ -20,10 +20,16 @@ if (!fs.existsSync(diskMountPath)) {
   console.log(`Created data directory: ${diskMountPath}`);
 }
 
-// Google OAuth configuration
+// IMPORTANT: Updated Google OAuth configuration to fix redirect URI mismatch
 const CLIENT_ID = process.env.CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID'; // Set in Render environment variables
 const CLIENT_SECRET = process.env.CLIENT_SECRET || 'YOUR_GOOGLE_CLIENT_SECRET'; // Set in Render environment variables
-const REDIRECT_URL = `${process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`}/auth/google/callback`;
+
+// FIX: Properly handle redirect URL based on environment without including port in production
+const REDIRECT_URL = process.env.NODE_ENV === 'production'
+  ? 'https://roasrobo-dashboard-eaiq.onrender.com/auth/google/callback'
+  : `http://localhost:${PORT}/auth/google/callback`;
+
+console.log(`Using OAuth redirect URL: ${REDIRECT_URL}`);
 
 const oAuth2Client = new OAuth2Client(CLIENT_ID, CLIENT_SECRET, REDIRECT_URL);
 
@@ -84,7 +90,9 @@ app.get('/login', (req, res) => {
 app.get('/auth/google', (req, res) => {
   const url = oAuth2Client.generateAuthUrl({
     access_type: 'offline',
-    scope: ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email']
+    scope: ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email'],
+    // FIX: Adding prompt parameter to force consent screen each time to ensure refresh token
+    prompt: 'consent'
   });
   res.redirect(url);
 });
@@ -96,6 +104,16 @@ app.get('/auth/google/callback', async (req, res) => {
   try {
     const { tokens } = await oAuth2Client.getToken(code);
     oAuth2Client.setCredentials(tokens);
+    
+    // Log token info for debugging (remove in production)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('Received tokens:', {
+        access_token: tokens.access_token ? 'present' : 'missing',
+        refresh_token: tokens.refresh_token ? 'present' : 'missing',
+        id_token: tokens.id_token ? 'present' : 'missing',
+        expiry: tokens.expiry_date
+      });
+    }
     
     const ticket = await oAuth2Client.verifyIdToken({
       idToken: tokens.id_token,
@@ -118,10 +136,20 @@ app.get('/auth/google/callback', async (req, res) => {
       picture: payload.picture
     };
     
+    // Store tokens in the auth file for later use by monitoring scripts
+    const authData = {
+      tokens,
+      user: req.session.user,
+      updated: new Date().toISOString()
+    };
+    
+    fs.writeFileSync(AUTH_FILE, JSON.stringify(authData));
+    console.log(`Auth data saved to ${AUTH_FILE}`);
+    
     res.redirect('/');
   } catch (error) {
     console.error('Authentication error:', error);
-    res.status(500).send('Authentication failed');
+    res.status(500).send(`Authentication failed: ${error.message}`);
   }
 });
 
@@ -405,6 +433,8 @@ app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log(`Using auth file at: ${AUTH_FILE}`);
   console.log(`Using status file at: ${STATUS_FILE}`);
+  console.log(`OAuth callback URL: ${REDIRECT_URL}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
 });
 
 module.exports = { app, scriptStatus, runMonitoringScript };
