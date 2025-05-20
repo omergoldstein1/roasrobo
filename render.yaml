@@ -1,0 +1,38 @@
+services:
+  # Web service for the dashboard
+  - type: web
+    name: roasrobo-dashboard
+    env: node
+    buildCommand: npm install
+    startCommand: node server.js
+    plan: starter
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: CLIENT_ID
+        sync: false # This means you'll input it manually in the Render dashboard
+      - key: CLIENT_SECRET
+        sync: false
+    disk:
+      name: auth-state
+      mountPath: /data
+      sizeGB: 1
+
+  # Background worker for the scheduled tasks
+  - type: worker
+    name: roasrobo-scheduler
+    env: node
+    buildCommand: npm install
+    startCommand: node cron-service.js
+    plan: starter
+    autoDeploy: true
+    envVars:
+      - key: CLIENT_ID
+        sync: false
+      - key: CLIENT_SECRET
+        sync: false
+    disk:
+      name: worker-auth-state
+      mountPath: /data
+      sizeGB: 1
