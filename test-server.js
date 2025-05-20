@@ -42,9 +42,15 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Debug middleware - log all requests
+// EXTREME DEBUGGING: Log all request details
 app.use((req, res, next) => {
-  console.log(`[DEBUG] ${req.method} ${req.path}`);
+  console.log('------------------------------------------------');
+  console.log(`REQUEST: ${req.method} ${req.url}`);
+  console.log(`PATH: ${req.path}`);
+  console.log(`QUERY: ${JSON.stringify(req.query)}`);
+  console.log(`HOST: ${req.hostname}`);
+  console.log(`HEADERS: ${JSON.stringify(req.headers)}`);
+  console.log('------------------------------------------------');
   next();
 });
 
@@ -82,10 +88,9 @@ app.get('/auth/google', (req, res) => {
   res.redirect(url);
 });
 
-// FIX: Combine both route handlers to ensure the callback is processed
-app.get(['/auth/google/callback', '/auth/google/callback*'], async (req, res) => {
-  console.log('OAuth callback received', { 
-    path: req.path,
+// THE CRITICAL FIX: Absolute wildcard pattern for the callback
+app.use('/auth/google/callback', async (req, res) => {
+  console.log('CALLBACK RECEIVED!', { 
     url: req.url,
     query: req.query,
     code: req.query.code ? 'present' : 'missing'
@@ -166,7 +171,7 @@ app.get('/logout', (req, res) => {
 
 // Catch all unhandled routes with proper 404 handler
 app.use((req, res) => {
-  console.log(`Route not found: ${req.method} ${req.path}`);
+  console.log(`ROUTE NOT FOUND: ${req.method} ${req.path}`);
   return res.status(404).send(`
     <html>
       <head><title>Page Not Found</title></head>
