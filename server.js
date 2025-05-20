@@ -21,8 +21,8 @@ if (!fs.existsSync(diskMountPath)) {
 }
 
 // Google OAuth configuration
-const CLIENT_ID = process.env.CLIENT_ID; // Set in Render environment variables
-const CLIENT_SECRET = process.env.CLIENT_SECRET; // Set in Render environment variables
+const CLIENT_ID = process.env.CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID'; // Set in Render environment variables
+const CLIENT_SECRET = process.env.CLIENT_SECRET || 'YOUR_GOOGLE_CLIENT_SECRET'; // Set in Render environment variables
 const REDIRECT_URL = `${process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`}/auth/google/callback`;
 
 const oAuth2Client = new OAuth2Client(CLIENT_ID, CLIENT_SECRET, REDIRECT_URL);
@@ -37,7 +37,7 @@ const EMAIL_CONFIG = {
     secure: false,
     auth: {
       user: 'roasrobo@brandbolt.co',
-      pass: process.env.EMAIL_APP_PASSWORD || 'your_app_password' // Use an app password for Gmail
+      pass: process.env.EMAIL_APP_PASSWORD || '123Brandbolt$' // Use environment variable in production
     }
   }
 };
