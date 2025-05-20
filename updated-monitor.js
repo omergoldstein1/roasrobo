@@ -26,7 +26,7 @@ const EMAIL_CONFIG = {
     secure: false,
     auth: {
       user: 'roasrobo@brandbolt.co',
-      pass: process.env.EMAIL_APP_PASSWORD || 'grej teth puim rbfk' // App password
+      pass: process.env.EMAIL_APP_PASSWORD || '123Brandbolt$' // Use environment variable in production
     }
   }
 };
