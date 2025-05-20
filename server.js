@@ -20,14 +20,14 @@ if (!fs.existsSync(diskMountPath)) {
   console.log(`Created data directory: ${diskMountPath}`);
 }
 
-// IMPORTANT: Updated Google OAuth configuration to fix redirect URI mismatch
+// IMPORTANT: Fixed Google OAuth configuration to avoid redirect URI mismatch
 const CLIENT_ID = process.env.CLIENT_ID || 'YOUR_GOOGLE_CLIENT_ID'; // Set in Render environment variables
 const CLIENT_SECRET = process.env.CLIENT_SECRET || 'YOUR_GOOGLE_CLIENT_SECRET'; // Set in Render environment variables
 
 // FIX: Properly handle redirect URL based on environment without including port in production
 const REDIRECT_URL = process.env.NODE_ENV === 'production'
   ? 'https://roasrobo-dashboard-eaiq.onrender.com/auth/google/callback'
-  : `http://localhost:3000/auth/google/callback`;
+  : `http://localhost:${PORT}/auth/google/callback`;
 
 console.log(`Using OAuth redirect URL: ${REDIRECT_URL}`);
 
@@ -48,16 +48,22 @@ const EMAIL_CONFIG = {
   }
 };
 
-// Session configuration
-app.use(session({
+// FIX: Added trust proxy for proper handling of secure cookies behind proxy
+app.set('trust proxy', 1);
+
+// Session configuration - FIX: Added session storage warning fix
+const sessionConfig = {
   secret: process.env.SESSION_SECRET || 'roasrobo-session-secret',
   resave: false,
-  saveUninitialized: true,
+  saveUninitialized: false, // Changed to false for production
   cookie: { 
     secure: process.env.NODE_ENV === 'production', 
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
-}));
+};
+
+// Use session middleware
+app.use(session(sessionConfig));
 
 // Parse JSON bodies
 app.use(express.json());
@@ -66,6 +72,12 @@ app.use(express.urlencoded({ extended: true }));
 // Serve static files
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Debug middleware to log all requests
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.path}`);
+  next();
+});
+
 // Middleware to check authentication
 const isAuthenticated = (req, res, next) => {
   if (req.session.isAuthenticated) {
@@ -73,6 +85,11 @@ const isAuthenticated = (req, res, next) => {
   }
   res.redirect('/login');
 };
+
+// Simple test route to verify Express is working
+app.get('/test', (req, res) => {
+  res.send('Server is working!');
+});
 
 // Routes
 app.get('/', isAuthenticated, (req, res) => {
@@ -91,29 +108,36 @@ app.get('/auth/google', (req, res) => {
   const url = oAuth2Client.generateAuthUrl({
     access_type: 'offline',
     scope: ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email'],
-    // FIX: Adding prompt parameter to force consent screen each time to ensure refresh token
-    prompt: 'consent'
+    prompt: 'consent' // Force consent screen to ensure refresh token
   });
+  console.log(`Redirecting to Google auth URL: ${url}`);
   res.redirect(url);
 });
 
-// Google OAuth callback
+// Google OAuth callback - FIX: Enhanced error handling and logging
 app.get('/auth/google/callback', async (req, res) => {
+  console.log('OAuth callback received', { 
+    query: req.query,
+    code: req.query.code ? 'present' : 'missing'
+  });
+  
   const code = req.query.code;
+  if (!code) {
+    console.error('No authorization code in callback');
+    return res.status(400).send('No authorization code received. Please try again.');
+  }
   
   try {
+    console.log('Getting tokens with code');
     const { tokens } = await oAuth2Client.getToken(code);
-    oAuth2Client.setCredentials(tokens);
+    console.log('Tokens received:', {
+      access_token: tokens.access_token ? 'present' : 'missing',
+      refresh_token: tokens.refresh_token ? 'present' : 'missing',
+      id_token: tokens.id_token ? 'present' : 'missing',
+      expiry: tokens.expiry_date
+    });
     
-    // Log token info for debugging (remove in production)
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('Received tokens:', {
-        access_token: tokens.access_token ? 'present' : 'missing',
-        refresh_token: tokens.refresh_token ? 'present' : 'missing',
-        id_token: tokens.id_token ? 'present' : 'missing',
-        expiry: tokens.expiry_date
-      });
-    }
+    oAuth2Client.setCredentials(tokens);
     
     const ticket = await oAuth2Client.verifyIdToken({
       idToken: tokens.id_token,
@@ -121,10 +145,12 @@ app.get('/auth/google/callback', async (req, res) => {
     });
     
     const payload = ticket.getPayload();
+    console.log('User identified:', payload.email);
     
-    // Check if user email is authorized (you can restrict access to specific emails)
+    // Check if user email is authorized
     const authorizedEmails = (process.env.AUTHORIZED_EMAILS || 'roasrobo@brandbolt.co,conner@brandbolt.co').split(',');
     if (!authorizedEmails.includes(payload.email)) {
+      console.log('Unauthorized email attempt:', payload.email);
       return res.status(403).send('Access denied: User not authorized');
     }
     
@@ -136,6 +162,8 @@ app.get('/auth/google/callback', async (req, res) => {
       picture: payload.picture
     };
     
+    console.log('Authentication successful, saving auth data');
+    
     // Store tokens in the auth file for later use by monitoring scripts
     const authData = {
       tokens,
@@ -146,10 +174,21 @@ app.get('/auth/google/callback', async (req, res) => {
     fs.writeFileSync(AUTH_FILE, JSON.stringify(authData));
     console.log(`Auth data saved to ${AUTH_FILE}`);
     
-    res.redirect('/');
+    // FIX: Use a more reliable redirect approach
+    console.log('Redirecting to dashboard');
+    return res.redirect('/');
   } catch (error) {
     console.error('Authentication error:', error);
-    res.status(500).send(`Authentication failed: ${error.message}`);
+    return res.status(500).send(`
+      <html>
+        <head><title>Authentication Error</title></head>
+        <body>
+          <h1>Authentication Failed</h1>
+          <p>Error: ${error.message}</p>
+          <p><a href="/login">Return to login page</a></p>
+        </body>
+      </html>
+    `);
   }
 });
 
@@ -426,6 +465,21 @@ if (process.env.ENABLE_CRON === 'true') {
 // Health check endpoint for monitoring
 app.get('/health', (req, res) => {
   res.status(200).send('OK');
+});
+
+// FIX: Added a catch-all route to handle 404s more gracefully
+app.use((req, res) => {
+  console.log(`Route not found: ${req.method} ${req.path}`);
+  res.status(404).send(`
+    <html>
+      <head><title>Page Not Found</title></head>
+      <body>
+        <h1>Page Not Found</h1>
+        <p>The requested page ${req.path} does not exist.</p>
+        <p><a href="/">Go to Dashboard</a> or <a href="/login">Go to Login</a></p>
+      </body>
+    </html>
+  `);
 });
 
 // Start server
