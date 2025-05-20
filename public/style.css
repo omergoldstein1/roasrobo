@@ -1,0 +1,402 @@
+/* General Styles */
+body {
+  background-color: #1e1e1e;
+  color: #fcfcfc;
+  -webkit-touch-callout: none; /* Prevent callout to copy image, etc when tap to hold */
+  -webkit-text-size-adjust: none; /* Prevent automatic font resizing */
+  -webkit-user-select: none; /* Prevent text selection */
+  -webkit-tap-highlight-color: rgba(0,0,0,0); /* Remove tap highlight */
+  touch-action: manipulation; /* Disable double-tap to zoom */
+}
+
+/* Scroll behavior */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Login Page Styles */
+.login-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background-color: #1e1e1e;
+}
+
+.login-container {
+  max-width: 330px;
+  padding: 15px;
+  background-color: #2a2a2a;
+  border-radius: 10px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  color: #fcfcfc;
+}
+
+.form-signin {
+  width: 100%;
+  max-width: 330px;
+  padding: 15px;
+  margin: auto;
+}
+
+.btn-google {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background-color: #21779d;
+  border-color: #21779d;
+}
+
+.btn-google:hover, .btn-google:focus {
+  background-color: #1a6080;
+  border-color: #1a6080;
+}
+
+/* Dashboard Styles */
+.navbar-brand {
+  display: flex;
+  align-items: center;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+}
+
+.card {
+  background-color: #2a2a2a;
+  border: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(0, 0, 0, 0.6);
+  margin-bottom: 20px;
+  color: #fcfcfc;
+}
+
+.card-header {
+  background-color: #333;
+  border-bottom: 1px solid #444;
+  color: #fcfcfc;
+}
+
+/* Mobile-specific styles */
+.mobile-action-bar {
+  background-color: #2a2a2a;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  position: sticky;
+  top: 56px; /* Height of navbar */
+  z-index: 1020;
+}
+
+/* Make the form switch larger and more touch-friendly */
+.form-check-input {
+  width: 3.5em !important;
+  height: 1.75em !important;
+  cursor: pointer;
+}
+
+.form-check-label {
+  font-size: 1.1rem;
+  padding-left: 0.5em;
+  cursor: pointer;
+}
+
+/* Button styles */
+.btn-primary {
+  background-color: #21779d;
+  border-color: #21779d;
+  font-size: 1.1rem;
+  padding: 0.6rem 1.2rem;
+}
+
+.btn-primary:hover, .btn-primary:focus {
+  background-color: #1a6080;
+  border-color: #1a6080;
+}
+
+.btn-info {
+  background-color: #dab643;
+  border-color: #dab643;
+  color: #1e1e1e;
+  font-size: 1.1rem;
+  padding: 0.6rem 1.2rem;
+}
+
+.btn-info:hover, .btn-info:focus {
+  background-color: #c9a63c;
+  border-color: #c9a63c;
+  color: #1e1e1e;
+}
+
+.btn-outline-light {
+  color: #fcfcfc;
+  border-color: #fcfcfc;
+}
+
+.btn-outline-light:hover {
+  background-color: #fcfcfc;
+  color: #1e1e1e;
+}
+
+/* Badge styles */
+.badge.bg-success {
+  background-color: #dab643 !important;
+  color: #1e1e1e;
+}
+
+.badge.bg-primary {
+  background-color: #21779d !important;
+}
+
+.badge.bg-secondary {
+  background-color: #555 !important;
+}
+
+.badge.bg-danger {
+  background-color: #dc3545 !important;
+}
+
+/* Text colors */
+.text-success {
+  color: #dab643 !important;
+}
+
+.text-danger {
+  color: #dc3545 !important;
+}
+
+.text-primary {
+  color: #21779d !important;
+}
+
+.text-info {
+  color: #21779d !important;
+}
+
+.text-secondary {
+  color: #aaa !important;
+}
+
+.text-muted {
+  color: #aaa !important;
+}
+
+.text-light {
+  color: #fcfcfc !important;
+}
+
+.text-warning {
+  color: #dab643 !important;
+}
+
+/* Make buttons and interactive elements larger on mobile for easier tapping */
+@media (max-width: 767.98px) {
+  .form-check-input,
+  .btn {
+    padding: 0.75rem 1.5rem;
+    font-size: 1.2rem;
+  }
+  
+  .stat-item {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #444;
+  }
+  
+  .stat-item:last-child {
+    border-bottom: none;
+  }
+  
+  .list-group-item {
+    padding: 0.75rem 1rem;
+    background-color: #2a2a2a;
+    border-color: #444;
+    color: #fcfcfc;
+  }
+  
+  /* Increase font size for better readability on mobile */
+  .card-body {
+    font-size: 1.05rem;
+  }
+  
+  /* Add some spacing between cards for mobile */
+  .card {
+    margin-bottom: 15px;
+  }
+  
+  /* Ensure content is visible without zooming */
+  .container {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  
+  /* Make control rows more visible on mobile */
+  .control-row {
+    padding: 1rem 0.5rem;
+  }
+}
+
+/* Better tap targets for log view */
+#viewLogs {
+  padding: 8px 12px;
+}
+
+/* Log modal styles */
+.modal-content {
+  background-color: #2a2a2a;
+  color: #fcfcfc;
+}
+
+.modal-header {
+  border-bottom: 1px solid #444;
+}
+
+.modal-footer {
+  border-top: 1px solid #444;
+}
+
+.log-content {
+  font-size: 0.85rem;
+  max-height: 400px;
+  overflow-y: auto;
+  background-color: #333;
+  color: #fcfcfc;
+  padding: 10px;
+  border-radius: 4px;
+}
+
+/* Status display styles */
+.status-indicator {
+  margin-bottom: 15px;
+}
+
+/* Stats display */
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.stat-value {
+  font-weight: 500;
+}
+
+/* Animations for status changes */
+@keyframes pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.7; }
+  100% { opacity: 1; }
+}
+
+.bg-primary {
+  animation: pulse 2s infinite;
+}
+
+/* iOS PWA (Progressive Web App) specific styles */
+@media (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Make sure buttons have good touch feedback */
+.btn-primary:active, .btn-info:active {
+  transform: scale(0.98);
+}
+
+/* Notification styles */
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background-color: #2a2a2a;
+  border-left: 4px solid #dab643;
+  padding: 15px;
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  max-width: 350px;
+  opacity: 0;
+  transform: translateY(-20px);
+  transition: opacity 0.3s, transform 0.3s;
+  z-index: 9999;
+  color: #fcfcfc;
+}
+
+.notification-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.notification-fade-out {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+.notification-content {
+  margin-right: 20px;
+}
+
+.notification-title {
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.notification-message {
+  font-size: 0.9rem;
+}
+
+.notification-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.notification-close:hover {
+  color: #fcfcfc;
+}
+
+/* Help box styling */
+.help-box {
+  background-color: rgba(33, 119, 157, 0.1);
+  border-radius: 4px;
+  border-left: 4px solid #21779d;
+}
+
+.help-box ul {
+  margin-bottom: 0;
+}
+
+.help-box li {
+  margin-bottom: 0.5rem;
+}
+
+.help-box li:last-child {
+  margin-bottom: 0;
+}
+
+/* Control Icons */
+.control-icon {
+  width: 40px;
+  text-align: center;
+}
+
+/* Control Row Styling */
+.control-row {
+  border-radius: 4px;
+  transition: background-color 0.2s;
+  border-bottom: 1px solid #444;
+}
+
+.control-row:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.control-row:last-child {
+  border-bottom: none;
+}
