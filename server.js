@@ -27,7 +27,7 @@ const CLIENT_SECRET = process.env.CLIENT_SECRET || 'YOUR_GOOGLE_CLIENT_SECRET'; 
 // FIX: Properly handle redirect URL based on environment without including port in production
 const REDIRECT_URL = process.env.NODE_ENV === 'production'
   ? 'https://roasrobo-dashboard-eaiq.onrender.com/auth/google/callback'
-  : `http://localhost:${PORT}/auth/google/callback`;
+  : `http://localhost:3000/auth/google/callback`;
 
 console.log(`Using OAuth redirect URL: ${REDIRECT_URL}`);
 
