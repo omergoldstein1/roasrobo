@@ -206,6 +206,7 @@ app.get('/api/user', isAuthenticated, (req, res) => {
 // Status tracker for the monitoring script
 let scriptStatus = {
   isRunning: false,
+  automationEnabled: true,
   lastRun: null,
   lastResult: null,
   controls: {
@@ -225,6 +226,9 @@ const saveStatus = () => {
 try {
   if (fs.existsSync(STATUS_FILE)) {
     scriptStatus = JSON.parse(fs.readFileSync(STATUS_FILE, 'utf8'));
+    if (typeof scriptStatus.automationEnabled === 'undefined') {
+      scriptStatus.automationEnabled = true;
+    }
     console.log('Loaded script status from file:', scriptStatus);
   } else {
     // Initialize the status file
@@ -238,6 +242,13 @@ try {
 // API endpoint to get script status
 app.get('/api/status', isAuthenticated, (req, res) => {
   res.json(scriptStatus);
+});
+
+// API endpoint to toggle master automation
+app.post('/api/toggle-automation', isAuthenticated, (req, res) => {
+  scriptStatus.automationEnabled = !scriptStatus.automationEnabled;
+  saveStatus();
+  res.json({ success: true, automationEnabled: scriptStatus.automationEnabled });
 });
 
 // API endpoint to toggle controls
@@ -263,7 +274,11 @@ app.post('/api/run-script', isAuthenticated, (req, res) => {
   if (scriptStatus.isRunning) {
     return res.status(400).json({ success: false, message: 'Script is already running' });
   }
-  
+
+  if (!scriptStatus.automationEnabled) {
+    return res.status(400).json({ success: false, message: 'Automation is disabled' });
+  }
+
   runMonitoringScript();
   res.json({ success: true, message: 'Script execution initiated' });
 });
@@ -398,6 +413,11 @@ function runMonitoringScript() {
     console.log('Script is already running, skipping this execution');
     return;
   }
+
+  if (!scriptStatus.automationEnabled) {
+    console.log('Automation is disabled, skipping script execution');
+    return;
+  }
   
   console.log('Running monitoring script...');
   scriptStatus.isRunning = true;
@@ -449,14 +469,15 @@ function runMonitoringScript() {
 if (process.env.ENABLE_CRON === 'true') {
   cron.schedule('5 * * * *', () => {
     console.log('Running scheduled task at 5th minute of the hour');
-    
+
     // Check which controls are enabled and run appropriate tasks
-    if (scriptStatus.controls.belowRoasChop || 
-        scriptStatus.controls.zeroRoasKiller || 
-        scriptStatus.controls.autoReactivate) {
+    if (scriptStatus.automationEnabled && (
+        scriptStatus.controls.belowRoasChop ||
+        scriptStatus.controls.zeroRoasKiller ||
+        scriptStatus.controls.autoReactivate)) {
       runMonitoringScript();
     } else {
-      console.log('No controls are enabled, skipping scheduled execution');
+      console.log('Automation disabled or no controls enabled, skipping scheduled execution');
     }
   });
   console.log('Cron job scheduled to run at 5 minutes past every hour');

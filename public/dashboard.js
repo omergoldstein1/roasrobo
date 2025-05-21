@@ -2,6 +2,7 @@
 const belowRoasChopSwitch = document.getElementById('belowRoasChopSwitch');
 const zeroRoasKillerSwitch = document.getElementById('zeroRoasKillerSwitch');
 const autoReactivateSwitch = document.getElementById('autoReactivateSwitch');
+const automationSwitch = document.getElementById('automationSwitch');
 const runButton = document.getElementById('runButton');
 const findToScaleButton = document.getElementById('findToScaleButton');
 const statusBadge = document.getElementById('statusBadge');
@@ -81,6 +82,10 @@ function setupEventListeners() {
       toggleControl('autoReactivate');
     });
   }
+
+  if (automationSwitch) {
+    automationSwitch.addEventListener('change', toggleAutomation);
+  }
   
   // View logs button
   if (viewLogs) {
@@ -131,9 +136,15 @@ function updateStatusDisplay(status) {
   if (belowRoasChopSwitch) belowRoasChopSwitch.checked = status.controls?.belowRoasChop || false;
   if (zeroRoasKillerSwitch) zeroRoasKillerSwitch.checked = status.controls?.zeroRoasKiller || false;
   if (autoReactivateSwitch) autoReactivateSwitch.checked = status.controls?.autoReactivate || false;
-  
+  if (automationSwitch) automationSwitch.checked = status.automationEnabled !== false;
+
+  const controlsDisabled = !status.automationEnabled;
+  if (belowRoasChopSwitch) belowRoasChopSwitch.disabled = controlsDisabled;
+  if (zeroRoasKillerSwitch) zeroRoasKillerSwitch.disabled = controlsDisabled;
+  if (autoReactivateSwitch) autoReactivateSwitch.disabled = controlsDisabled;
+
   // Update auto-run status display
-  const anyEnabled = status.controls?.belowRoasChop || status.controls?.zeroRoasKiller || status.controls?.autoReactivate;
+  const anyEnabled = status.automationEnabled && (status.controls?.belowRoasChop || status.controls?.zeroRoasKiller || status.controls?.autoReactivate);
   if (autoRunStatus) {
     autoRunStatus.textContent = anyEnabled ? 'Enabled' : 'Disabled';
     autoRunStatus.className = 'stat-value ' + (anyEnabled ? 'text-success' : 'text-secondary');
@@ -217,8 +228,8 @@ function updateStatusDisplay(status) {
 
 function updateNextRunTime() {
   if (!nextRun) return;
-  
-  const anyEnabled = belowRoasChopSwitch?.checked || zeroRoasKillerSwitch?.checked || autoReactivateSwitch?.checked;
+
+  const anyEnabled = automationSwitch?.checked && (belowRoasChopSwitch?.checked || zeroRoasKillerSwitch?.checked || autoReactivateSwitch?.checked);
   
   if (!anyEnabled) {
     nextRun.textContent = 'Auto monitoring disabled';
@@ -397,6 +408,39 @@ async function toggleControl(control) {
       timestamp: new Date(),
       type: 'error',
       message: `Failed to toggle ${control}`,
+      details: 'Could not connect to the server'
+    });
+  }
+}
+
+async function toggleAutomation() {
+  if (!automationSwitch) return;
+
+  const originalState = automationSwitch.checked;
+
+  try {
+    const response = await fetch('/api/toggle-automation', {
+      method: 'POST'
+    });
+
+    if (response.ok) {
+      const result = await response.json();
+      addActivityItem({
+        timestamp: new Date(),
+        type: 'info',
+        message: `Automation ${result.automationEnabled ? 'enabled' : 'paused'}`,
+        details: `All automated actions are now ${result.automationEnabled ? 'enabled' : 'paused'}`
+      });
+
+      updateNextRunTime();
+    }
+  } catch (error) {
+    console.error('Error toggling automation:', error);
+    automationSwitch.checked = !originalState;
+    addActivityItem({
+      timestamp: new Date(),
+      type: 'error',
+      message: 'Failed to toggle automation',
       details: 'Could not connect to the server'
     });
   }

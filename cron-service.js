@@ -9,6 +9,7 @@ const STATUS_FILE = path.join(process.env.RENDER_DISK_MOUNT_PATH || '/data', 'sc
 // Initialize status object
 let scriptStatus = {
   isRunning: false,
+  automationEnabled: true,
   lastRun: null,
   lastResult: null,
   controls: {
@@ -23,6 +24,9 @@ let scriptStatus = {
 try {
   if (fs.existsSync(STATUS_FILE)) {
     scriptStatus = JSON.parse(fs.readFileSync(STATUS_FILE, 'utf8'));
+    if (typeof scriptStatus.automationEnabled === 'undefined') {
+      scriptStatus.automationEnabled = true;
+    }
     console.log('Loaded script status from file:', scriptStatus);
   } else {
     // Create the status file if it doesn't exist
@@ -47,6 +51,11 @@ const saveStatus = () => {
 function runMonitoringScript() {
   if (scriptStatus.isRunning) {
     console.log('Script is already running, skipping this execution');
+    return;
+  }
+
+  if (!scriptStatus.automationEnabled) {
+    console.log('Automation is disabled, skipping script execution');
     return;
   }
   
@@ -99,12 +108,13 @@ cron.schedule('5 * * * *', () => {
   console.log('Running scheduled task at 5th minute of the hour');
   
   // Check which controls are enabled and run appropriate tasks
-  if (scriptStatus.controls.belowRoasChop || 
-      scriptStatus.controls.zeroRoasKiller || 
-      scriptStatus.controls.autoReactivate) {
+  if (scriptStatus.automationEnabled && (
+      scriptStatus.controls.belowRoasChop ||
+      scriptStatus.controls.zeroRoasKiller ||
+      scriptStatus.controls.autoReactivate)) {
     runMonitoringScript();
   } else {
-    console.log('No controls are enabled, skipping scheduled execution');
+    console.log('Automation disabled or no controls enabled, skipping scheduled execution');
   }
 });
 

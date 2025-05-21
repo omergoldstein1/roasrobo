@@ -10,6 +10,16 @@ ROASRobo is an automated solution for monitoring and managing Facebook/Looker St
 - **Mobile Dashboard**: Remote control of automation features from any device
 - **Google Authentication**: Secure access to the dashboard and monitoring system
 
+### Local Testing Without Dependencies
+
+If you're working in an offline environment, run the lightweight test server:
+
+```bash
+npm test
+```
+
+This starts `local-server.js`, a small Node HTTP server that serves the dashboard and fake API endpoints without requiring any external packages. Use it to try the UI and toggles when `npm install` isn't possible.
+
 ## Deployment Guide for Render
 
 This guide will help you deploy ROASRobo to [Render](https://render.com) for a stable, managed hosting solution.
