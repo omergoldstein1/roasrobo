@@ -6,6 +6,8 @@ const path = require('path');
 const cron = require('node-cron');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
+const fetch = require('node-fetch');
+const FormData = require('form-data');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -47,6 +49,15 @@ const EMAIL_CONFIG = {
     }
   }
 };
+
+// Facebook API configuration
+const FB_API_VERSION = process.env.FB_API_VERSION || 'v18.0';
+const FB_ACCESS_TOKEN = process.env.FB_ACCESS_TOKEN || 'YOUR_FB_ACCESS_TOKEN';
+const FB_AD_ACCOUNT_ID = process.env.FB_AD_ACCOUNT_ID || 'YOUR_AD_ACCOUNT_ID';
+const FB_PAGE_ID = process.env.FB_PAGE_ID || 'YOUR_PAGE_ID';
+const MANAGER_EMAIL = process.env.MANAGER_EMAIL || EMAIL_CONFIG.to;
+const DEFAULT_TARGETING = process.env.FB_TARGETING ? JSON.parse(process.env.FB_TARGETING) : { geo_locations: { countries: ['US'] } };
+const DEFAULT_BUDGET = process.env.FB_DAILY_BUDGET || 1000;
 
 // FIX: Added trust proxy for proper handling of secure cookies behind proxy
 app.set('trust proxy', 1);
@@ -94,6 +105,11 @@ app.get('/test', (req, res) => {
 // Routes
 app.get('/', isAuthenticated, (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+// Designer upload page
+app.get('/upload', isAuthenticated, (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'upload.html'));
 });
 
 app.get('/login', (req, res) => {
@@ -293,6 +309,117 @@ app.post('/api/find-to-scale', isAuthenticated, (req, res) => {
       console.error('Error finding campaigns to scale:', error);
       res.status(500).json({ success: false, message: 'Failed to find campaigns to scale' });
     });
+});
+
+// Designer API to upload image and create Facebook campaign
+app.post('/api/create-campaign', isAuthenticated, async (req, res) => {
+  const { imageData, fileName, campaignName, adCopy, landingUrl, notes } = req.body;
+
+  if (!imageData || !campaignName) {
+    return res.status(400).json({ error: 'Image data and campaign name are required' });
+  }
+
+  try {
+    const base64 = imageData.replace(/^data:.+;base64,/, '');
+    const buffer = Buffer.from(base64, 'base64');
+    const form = new FormData();
+    form.append('filename', buffer, { filename: fileName || 'image.jpg' });
+
+    const imageRes = await fetch(`https://graph.facebook.com/${FB_API_VERSION}/act_${FB_AD_ACCOUNT_ID}/adimages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${FB_ACCESS_TOKEN}` },
+      body: form
+    });
+    const imageJson = await imageRes.json();
+    if (!imageRes.ok) {
+      throw new Error(imageJson.error && imageJson.error.message ? imageJson.error.message : 'Image upload failed');
+    }
+    const imageHash = Object.values(imageJson.images)[0].hash;
+
+    const campaignRes = await fetch(`https://graph.facebook.com/${FB_API_VERSION}/act_${FB_AD_ACCOUNT_ID}/campaigns`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${FB_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: campaignName, status: 'PAUSED', objective: 'LINK_CLICKS' })
+    });
+    const campaignJson = await campaignRes.json();
+    if (!campaignRes.ok) {
+      throw new Error(campaignJson.error && campaignJson.error.message ? campaignJson.error.message : 'Campaign creation failed');
+    }
+    const campaignId = campaignJson.id;
+
+    const adsetRes = await fetch(`https://graph.facebook.com/${FB_API_VERSION}/act_${FB_AD_ACCOUNT_ID}/adsets`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${FB_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: campaignName + ' Set',
+        campaign_id: campaignId,
+        daily_budget: DEFAULT_BUDGET,
+        billing_event: 'IMPRESSIONS',
+        optimization_goal: 'LINK_CLICKS',
+        targeting: DEFAULT_TARGETING,
+        status: 'PAUSED'
+      })
+    });
+    const adsetJson = await adsetRes.json();
+    if (!adsetRes.ok) {
+      throw new Error(adsetJson.error && adsetJson.error.message ? adsetJson.error.message : 'Ad set creation failed');
+    }
+    const adsetId = adsetJson.id;
+
+    const creativeRes = await fetch(`https://graph.facebook.com/${FB_API_VERSION}/act_${FB_AD_ACCOUNT_ID}/adcreatives`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${FB_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: campaignName + ' Creative',
+        object_story_spec: {
+          page_id: FB_PAGE_ID,
+          link_data: {
+            image_hash: imageHash,
+            link: landingUrl || 'https://example.com',
+            message: adCopy || ''
+          }
+        }
+      })
+    });
+    const creativeJson = await creativeRes.json();
+    if (!creativeRes.ok) {
+      throw new Error(creativeJson.error && creativeJson.error.message ? creativeJson.error.message : 'Creative creation failed');
+    }
+    const creativeId = creativeJson.id;
+
+    const adRes = await fetch(`https://graph.facebook.com/${FB_API_VERSION}/act_${FB_AD_ACCOUNT_ID}/ads`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${FB_ACCESS_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: campaignName + ' Ad',
+        adset_id: adsetId,
+        creative: { creative_id: creativeId },
+        status: 'PAUSED'
+      })
+    });
+    const adJson = await adRes.json();
+    if (!adRes.ok) {
+      throw new Error(adJson.error && adJson.error.message ? adJson.error.message : 'Ad creation failed');
+    }
+
+    if (MANAGER_EMAIL) {
+      const transporter = nodemailer.createTransport(EMAIL_CONFIG.smtp);
+      await transporter.sendMail({
+        from: EMAIL_CONFIG.from,
+        to: MANAGER_EMAIL,
+        subject: 'New Facebook Campaign Created',
+        html: `<p>Campaign <b>${campaignName}</b> created and is paused.</p>
+              <p>ID: ${campaignId}</p>
+              <p>${notes || ''}</p>
+              <p><a href="https://business.facebook.com/adsmanager/manage/campaigns?act=${FB_AD_ACCOUNT_ID}&selected_campaign_ids=${campaignId}">View in Ads Manager</a></p>`
+      });
+    }
+
+    res.json({ campaignId });
+  } catch (err) {
+    console.error('Error creating campaign:', err);
+    res.status(500).json({ error: err.message || 'Failed to create campaign' });
+  }
 });
 
 // Function to find campaigns with ROAS > 1.8 and send email

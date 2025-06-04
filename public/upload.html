@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Facebook Campaign Upload</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 40px auto; }
+    #drop-area { border: 2px dashed #ccc; padding: 20px; text-align: center; cursor: pointer; }
+    #drop-area.dragover { background: #f0f0f0; }
+    img { max-width: 100%; display: none; margin-top: 10px; }
+    input, textarea { width: 100%; margin-top: 10px; padding: 8px; }
+    button { margin-top: 10px; padding: 10px 20px; }
+    #status { margin-top: 15px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Upload Facebook Campaign</h1>
+  <form id="upload-form">
+    <div id="drop-area">Drag & drop image or click to select<input id="file-input" type="file" accept="image/png,image/jpeg,image/gif" style="display:none"></div>
+    <img id="preview">
+    <input type="text" id="campaign-name" placeholder="Campaign Name" required>
+    <textarea id="ad-copy" placeholder="Ad Copy (optional)"></textarea>
+    <input type="url" id="landing-url" placeholder="Landing URL (optional)">
+    <textarea id="notes" placeholder="Notes"></textarea>
+    <button type="submit">Submit</button>
+  </form>
+  <div id="status"></div>
+<script>
+(function() {
+  const dropArea = document.getElementById('drop-area');
+  const fileInput = document.getElementById('file-input');
+  const preview = document.getElementById('preview');
+  let fileData = null;
+
+  function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+
+  ['dragenter','dragover','dragleave','drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, preventDefaults, false);
+  });
+
+  ['dragenter','dragover'].forEach(eventName => {
+    dropArea.addEventListener(eventName, () => dropArea.classList.add('dragover')); });
+  ['dragleave','drop'].forEach(eventName => {
+    dropArea.addEventListener(eventName, () => dropArea.classList.remove('dragover')); });
+
+  dropArea.addEventListener('click', () => fileInput.click());
+  dropArea.addEventListener('drop', handleFiles);
+  fileInput.addEventListener('change', handleFiles);
+
+  function handleFiles(e) {
+    const file = e.target.files ? e.target.files[0] : e.dataTransfer.files[0];
+    if (!file) return;
+    if (!['image/jpeg','image/png','image/gif'].includes(file.type)) {
+      alert('Only JPG, PNG, GIF files allowed');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('File must be under 5MB');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = ev => {
+      fileData = ev.target.result;
+      preview.src = fileData;
+      preview.style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  document.getElementById('upload-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const statusEl = document.getElementById('status');
+    statusEl.textContent = 'Uploading...';
+    try {
+      const res = await fetch('/api/create-campaign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          imageData: fileData,
+          fileName: fileInput.files[0] ? fileInput.files[0].name : 'image.jpg',
+          campaignName: document.getElementById('campaign-name').value,
+          adCopy: document.getElementById('ad-copy').value,
+          landingUrl: document.getElementById('landing-url').value,
+          notes: document.getElementById('notes').value
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      statusEl.textContent = 'Created campaign ID: ' + data.campaignId;
+    } catch(err) {
+      statusEl.textContent = 'Error: ' + err.message;
+    }
+  });
+})();
+</script>
+</body>
+</html>
